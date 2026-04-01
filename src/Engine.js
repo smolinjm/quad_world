@@ -14,7 +14,8 @@ export class Engine {
     this.container.appendChild(this.renderer.domElement);
 
     // Quad Sphere Setup
-    this.sphereRadius = 5;
+    // Increased scale 10x (from 5 to 50)
+    this.sphereRadius = 50;
     // Changed subdivisions from 6 to 8 to approximately double the quad count (216 -> 384)
     const { lineGeometry, meshGeometry } = createQuadSphereEdges(this.sphereRadius, 8);
     
@@ -214,7 +215,8 @@ export class Engine {
 
     // -- FPS Character Movement --
     if (this.mode === 'object') {
-       const moveSpeed = 5 * dt; // exactly 5 units per second on sphere surface
+       // Dynamically bind speed to the sphere radius so traversal feels consistent regardless of planet size
+       const moveSpeed = this.sphereRadius * dt; 
        const moveDir = new THREE.Vector3(0, 0, 0);
 
        if (this.keys.w) moveDir.z -= 1;
@@ -239,12 +241,13 @@ export class Engine {
 
     // Gravity and Jump forces
     if (this.mode === 'object') {
-        const gravityAccelerate = 25.0; 
+        // Dynamically scale physics to the planet's size
+        const gravityAccelerate = this.sphereRadius * 5.0; // scales to 250
         this.verticalVelocity -= gravityAccelerate * dt;
         
         // Ensure jumping only activates when grounded
         if (this.isGrounded && this.keys.space) {
-             this.verticalVelocity = 12.0;
+             this.verticalVelocity = this.sphereRadius * 2.4; // scales to 120
              this.isGrounded = false;
         }
 
