@@ -33,8 +33,8 @@ export class Engine {
     this.sphereGroup.add(this.sphereMesh);
     this.scene.add(this.sphereGroup);
 
-    // The Small Cube for Object Mode (10x smaller radius)
-    const cubeRad = this.sphereRadius / 10;
+    // The Small Cube for Object Mode (fixed absolute radius)
+    const cubeRad = 0.5;
     const cubeGeo = new THREE.BoxGeometry(cubeRad*2, cubeRad*2, cubeRad*2);
     const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
     this.cube = new THREE.Mesh(cubeGeo, cubeMat);
@@ -215,8 +215,8 @@ export class Engine {
 
     // -- FPS Character Movement --
     if (this.mode === 'object') {
-       // Dynamically bind speed to the sphere radius so traversal feels consistent regardless of planet size
-       const moveSpeed = this.sphereRadius * dt; 
+       // Using fixed absolute traversal speed relative to the human-scale cube
+       const moveSpeed = 5.0 * dt; 
        const moveDir = new THREE.Vector3(0, 0, 0);
 
        if (this.keys.w) moveDir.z -= 1;
@@ -241,13 +241,13 @@ export class Engine {
 
     // Gravity and Jump forces
     if (this.mode === 'object') {
-        // Dynamically scale physics to the planet's size
-        const gravityAccelerate = this.sphereRadius * 5.0; // scales to 250
+        // Absolute rigid physics to match the human-scale cube
+        const gravityAccelerate = 25.0; 
         this.verticalVelocity -= gravityAccelerate * dt;
         
         // Ensure jumping only activates when grounded
         if (this.isGrounded && this.keys.space) {
-             this.verticalVelocity = this.sphereRadius * 2.4; // scales to 120
+             this.verticalVelocity = 12.0; 
              this.isGrounded = false;
         }
 
@@ -273,7 +273,7 @@ export class Engine {
       // Ground clamping logic
       if (this.mode === 'object') {
           const distToSurface = intersects[0].distance;
-          const cubeRad = this.sphereRadius / 10;
+          const cubeRad = 0.5; // Absolute human-scale size
           const expectedDistanceIfResting = cubeRad;
           
           if (distToSurface <= expectedDistanceIfResting) {
@@ -304,7 +304,7 @@ export class Engine {
 
     } else if (this.mode === 'object') {
       // First-person / Clamp to cube view
-      const cubeRad = this.sphereRadius / 10;
+      const cubeRad = 0.5; // Fixed absolute radius
       const cubeHeight = cubeRad * 2;
       
       // Position offset Y by 0.3 the height of the cube
