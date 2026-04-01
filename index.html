@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quad Sphere Interface</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <!-- Background / Desktop Environment -->
+    <div id="desktop">
+      
+      <!-- Interface Window -->
+      <div id="app-window" class="window glass">
+        <div class="window-header" id="window-header">
+          <span class="title">Quad Interface</span>
+          <div class="controls">
+            <button class="win-btn minimize">−</button>
+            <button class="win-btn maximize">⬜</button>
+            <button class="win-btn close">✕</button>
+          </div>
+        </div>
+        
+        <div class="window-content">
+          <!-- Control Toggle UI -->
+          <div class="mode-switcher glass-panel">
+            <button id="mode-orbit" class="active">Orbit Control</button>
+            <button id="mode-object">Object Control</button>
+          </div>
+
+          <!-- WebGL Container -->
+          <div id="canvas-container"></div>
+        </div>
+      </div>
+    
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
