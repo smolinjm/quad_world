@@ -34,7 +34,7 @@ export class Engine {
     // The Small Cube for Object Mode (10x smaller radius)
     const cubeRad = this.sphereRadius / 10;
     const cubeGeo = new THREE.BoxGeometry(cubeRad*2, cubeRad*2, cubeRad*2);
-    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: false });
+    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
     this.cube = new THREE.Mesh(cubeGeo, cubeMat);
     
     // Add glowing edges to cube
@@ -50,6 +50,12 @@ export class Engine {
 
     // Mode properties
     this.mode = 'orbit'; // 'orbit' or 'object'
+    
+    // FPS State
+    this.keys = { w: false, a: false, s: false, d: false };
+    this.yaw = 0;
+    this.pitch = 0;
+    this.isPointerLocked = false;
     
     // Orbital Physics State
     this.orbitVelocity = new THREE.Vector2(0, 0);
@@ -103,52 +109,70 @@ export class Engine {
   setupInputs() {
     const el = this.renderer.domElement;
     
+    // Keyboard listener
+    window.addEventListener('keydown', (e) => {
+      if (this.mode !== 'object') return;
+      if (e.key === 'w' || e.key === 'W') this.keys.w = true;
+      if (e.key === 'a' || e.key === 'A') this.keys.a = true;
+      if (e.key === 's' || e.key === 'S') this.keys.s = true;
+      if (e.key === 'd' || e.key === 'D') this.keys.d = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (this.mode !== 'object') return;
+      if (e.key === 'w' || e.key === 'W') this.keys.w = false;
+      if (e.key === 'a' || e.key === 'A') this.keys.a = false;
+      if (e.key === 's' || e.key === 'S') this.keys.s = false;
+      if (e.key === 'd' || e.key === 'D') this.keys.d = false;
+    });
+
+    // Pointer Lock events
+    document.addEventListener('pointerlockchange', () => {
+      this.isPointerLocked = document.pointerLockElement === el;
+    });
+
+    el.addEventListener('click', () => {
+      if (this.mode === 'object' && !this.isPointerLocked) {
+        el.requestPointerLock();
+      }
+    });
+
     el.addEventListener('pointerdown', (e) => {
-      this.isDragging = true;
-      this.previousMouse.set(e.clientX, e.clientY);
-      
       if (this.mode === 'orbit') {
-         // Second click stops spin instantly
-         if (this.orbitVelocity.lengthSq() > 0.0001) {
-            this.orbitVelocity.set(0, 0);
-         }
+        this.isDragging = true;
+        this.previousMouse.set(e.clientX, e.clientY);
+        
+        // Second click stops spin instantly
+        if (this.orbitVelocity.lengthSq() > 0.0001) {
+           this.orbitVelocity.set(0, 0);
+        }
       }
     });
 
     el.addEventListener('pointermove', (e) => {
-      if (this.isDragging) {
+      // Orbit drag handling
+      if (this.mode === 'orbit' && this.isDragging) {
         const deltaX = e.clientX - this.previousMouse.x;
         const deltaY = e.clientY - this.previousMouse.y;
         
-        if (this.mode === 'orbit') {
-          // Impart momentum based on drag speed
-          const dragSensitivity = 0.002;
-          this.orbitVelocity.x = deltaX * dragSensitivity;
-          this.orbitVelocity.y = deltaY * dragSensitivity;
-          
-          this.applyOrbitRotation(deltaX * 0.01, deltaY * 0.01);
-        } else if (this.mode === 'object') {
-          // Move cube across sphere surface based on mouse drag
-          const moveSpeed = 0.01;
-          
-          const pos = this.cube.position.clone();
-          const axisY = new THREE.Vector3(0, 1, 0);
-          
-          // Obtain an X axis relative to current camera looking at the cube
-          const camDir = new THREE.Vector3();
-          this.camera.getWorldDirection(camDir);
-          const axisX = new THREE.Vector3().crossVectors(camDir, new THREE.Vector3(0, 1, 0)).normalize();
-          if (axisX.lengthSq() < 0.001) axisX.set(1, 0, 0);
-          
-          pos.applyAxisAngle(axisY, -deltaX * moveSpeed);
-          pos.applyAxisAngle(axisX, -deltaY * moveSpeed);
-          
-          // Predict distance roughly close to surface so it glides along
-          pos.normalize().multiplyScalar(this.sphereRadius + (this.sphereRadius/10) + 0.1);
-          this.cube.position.copy(pos);
-        }
+        // Impart momentum based on drag speed
+        const dragSensitivity = 0.002;
+        this.orbitVelocity.x = deltaX * dragSensitivity;
+        this.orbitVelocity.y = deltaY * dragSensitivity;
+        
+        this.applyOrbitRotation(deltaX * 0.01, deltaY * 0.01);
+        this.previousMouse.set(e.clientX, e.clientY);
+      } 
+      // FPS Mouse Look handling
+      else if (this.mode === 'object' && this.isPointerLocked) {
+        const lookSensitivity = 0.002;
+        this.yaw -= e.movementX * lookSensitivity;
+        this.pitch -= e.movementY * lookSensitivity;
+        
+        // Clamp pitch to prevent flipping perfectly backwards
+        const maxPitch = Math.PI / 2 - 0.05;
+        this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
       }
-      this.previousMouse.set(e.clientX, e.clientY);
     });
 
     el.addEventListener('pointerup', () => {
@@ -183,6 +207,24 @@ export class Engine {
       }
     }
 
+    // -- FPS Character Movement --
+    if (this.mode === 'object') {
+       const moveSpeed = 5 * dt; // exactly 5 units per second on sphere surface
+       const moveDir = new THREE.Vector3(0, 0, 0);
+
+       if (this.keys.w) moveDir.z -= 1;
+       if (this.keys.s) moveDir.z += 1;
+       if (this.keys.a) moveDir.x -= 1;
+       if (this.keys.d) moveDir.x += 1;
+
+       if (moveDir.lengthSq() > 0) {
+          moveDir.normalize().multiplyScalar(moveSpeed);
+          // Move outward based on cube's local rotation mapping
+          moveDir.applyQuaternion(this.cube.quaternion);
+          this.cube.position.add(moveDir);
+       }
+    }
+
     // -- Physics Raycast & Alignment --
     // Shoot ray exactly from the cube towards the origin of the sphere
     let targetCubeRot = this.cube.quaternion.clone();
@@ -198,7 +240,10 @@ export class Engine {
       
       const upDir = new THREE.Vector3(0, 1, 0);
       const alignQuat = new THREE.Quaternion().setFromUnitVectors(upDir, faceNormal);
-      targetCubeRot = alignQuat;
+      
+      // Combine normal alignment with player yaw (heading)
+      const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+      targetCubeRot = alignQuat.clone().multiply(yawQuat);
       
       // Keep cube pinned to exactly rest on the plane (based on geometry collision distance)
       if (this.mode === 'object') {
@@ -211,7 +256,7 @@ export class Engine {
     }
     
     // Smooth SLERP alignment visually
-    this.cube.quaternion.slerp(targetCubeRot, 0.2);
+    this.cube.quaternion.slerp(targetCubeRot, 0.4);
 
     // -- Camera Director --
     if (this.mode === 'orbit') {
@@ -226,18 +271,24 @@ export class Engine {
       this.camera.quaternion.slerp(targetQuat, 0.05);
 
     } else if (this.mode === 'object') {
-      // Third-person / Chased offset view
-      const offset = new THREE.Vector3(0, 15, 25).multiplyScalar(this.sphereRadius / 10);
-      offset.applyQuaternion(this.cube.quaternion); // Match offset relative to tangent plane
+      // First-person / Clamp to cube view
+      const cubeRad = this.sphereRadius / 10;
+      const cubeHeight = cubeRad * 2;
+      
+      // Position offset Y by 0.3 the height of the cube
+      const offset = new THREE.Vector3(0, cubeHeight * 0.3, 0);
+      offset.applyQuaternion(this.cube.quaternion); // Match offset relative to local orientation
       
       const targetPos = this.cube.position.clone().add(offset);
       this.camera.position.lerp(targetPos, 0.08);
 
-      const currentRot = this.camera.quaternion.clone();
-      this.camera.lookAt(this.cube.position);
-      const targetQuat = this.camera.quaternion.clone();
-      this.camera.quaternion.copy(currentRot);
-      this.camera.quaternion.slerp(targetQuat, 0.08);
+      // Rotate camera to match cube (which incorporates yaw), then apply pitch
+      const camQuat = this.cube.quaternion.clone();
+      const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.pitch);
+      camQuat.multiply(pitchQuat);
+      
+      // Fast lerp so the camera snaps responsively like an FPS
+      this.camera.quaternion.slerp(camQuat, 0.4);
     }
 
     this.renderer.render(this.scene, this.camera);
