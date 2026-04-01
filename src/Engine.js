@@ -15,7 +15,8 @@ export class Engine {
 
     // Quad Sphere Setup
     this.sphereRadius = 5;
-    const { lineGeometry, meshGeometry } = createQuadSphereEdges(this.sphereRadius, 6);
+    // Changed subdivisions from 6 to 8 to approximately double the quad count (216 -> 384)
+    const { lineGeometry, meshGeometry } = createQuadSphereEdges(this.sphereRadius, 8);
     
     // The glowing wireframe (Visual)
     const lineMat = new THREE.LineBasicMaterial({ color: 0x00f3ff, linewidth: 2 });
@@ -52,10 +53,12 @@ export class Engine {
     this.mode = 'orbit'; // 'orbit' or 'object'
     
     // FPS State
-    this.keys = { w: false, a: false, s: false, d: false };
+    this.keys = { w: false, a: false, s: false, d: false, space: false };
     this.yaw = 0;
     this.pitch = 0;
     this.isPointerLocked = false;
+    this.verticalVelocity = 0;
+    this.isGrounded = false;
     
     // Orbital Physics State
     this.orbitVelocity = new THREE.Vector2(0, 0);
@@ -116,6 +119,7 @@ export class Engine {
       if (e.key === 'a' || e.key === 'A') this.keys.a = true;
       if (e.key === 's' || e.key === 'S') this.keys.s = true;
       if (e.key === 'd' || e.key === 'D') this.keys.d = true;
+      if (e.key === ' ') this.keys.space = true;
     });
 
     window.addEventListener('keyup', (e) => {
@@ -124,6 +128,7 @@ export class Engine {
       if (e.key === 'a' || e.key === 'A') this.keys.a = false;
       if (e.key === 's' || e.key === 'S') this.keys.s = false;
       if (e.key === 'd' || e.key === 'D') this.keys.d = false;
+      if (e.key === ' ') this.keys.space = false;
     });
 
     // Pointer Lock events
@@ -229,7 +234,24 @@ export class Engine {
     // Shoot ray exactly from the cube towards the origin of the sphere
     let targetCubeRot = this.cube.quaternion.clone();
     
+    // Calculate vertical down direction targeting sphere's global center (local gravity core)
     const dirToCenter = new THREE.Vector3(0,0,0).sub(this.cube.position).normalize();
+
+    // Gravity and Jump forces
+    if (this.mode === 'object') {
+        const gravityAccelerate = 25.0; 
+        this.verticalVelocity -= gravityAccelerate * dt;
+        
+        // Ensure jumping only activates when grounded
+        if (this.isGrounded && this.keys.space) {
+             this.verticalVelocity = 12.0;
+             this.isGrounded = false;
+        }
+
+        // Apply physical lift/drop by driving against dirToCenter 
+        this.cube.position.addScaledVector(dirToCenter, -this.verticalVelocity * dt);
+    }
+    
     this.raycaster.set(this.cube.position, dirToCenter);
     const intersects = this.raycaster.intersectObject(this.sphereMesh);
     
@@ -245,13 +267,20 @@ export class Engine {
       const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
       targetCubeRot = alignQuat.clone().multiply(yawQuat);
       
-      // Keep cube pinned to exactly rest on the plane (based on geometry collision distance)
+      // Ground clamping logic
       if (this.mode === 'object') {
           const distToSurface = intersects[0].distance;
           const cubeRad = this.sphereRadius / 10;
           const expectedDistanceIfResting = cubeRad;
-          const pushZ = distToSurface - expectedDistanceIfResting;
-          this.cube.position.addScaledVector(dirToCenter, pushZ);
+          
+          if (distToSurface <= expectedDistanceIfResting) {
+              const pushZ = distToSurface - expectedDistanceIfResting;
+              this.cube.position.addScaledVector(dirToCenter, pushZ);
+              this.verticalVelocity = 0;
+              this.isGrounded = true;
+          } else {
+              this.isGrounded = false; 
+          }
       }
     }
     
