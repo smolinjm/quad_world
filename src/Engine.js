@@ -55,7 +55,6 @@ export class Engine {
     
     // FPS State
     this.keys = { w: false, a: false, s: false, d: false, space: false };
-    this.yaw = 0;
     this.pitch = 0;
     this.isPointerLocked = false;
     this.verticalVelocity = 0;
@@ -173,7 +172,12 @@ export class Engine {
       // FPS Mouse Look handling
       else if (this.mode === 'object' && this.isPointerLocked) {
         const lookSensitivity = 0.002;
-        this.yaw -= e.movementX * lookSensitivity;
+        
+        // Pivot left/right heading incrementally directly on the character's local axis
+        const yawDelta = -e.movementX * lookSensitivity;
+        this.cube.rotateY(yawDelta);
+        
+        // Pivot up/down camera pitch tracking
         this.pitch -= e.movementY * lookSensitivity;
         
         // Clamp pitch to prevent flipping perfectly backwards
@@ -265,12 +269,14 @@ export class Engine {
       // Face normals are in local space of sphere. Transform to world.
       faceNormal.transformDirection(this.sphereGroup.matrixWorld).normalize();
       
-      const upDir = new THREE.Vector3(0, 1, 0);
-      const alignQuat = new THREE.Quaternion().setFromUnitVectors(upDir, faceNormal);
+      // Find current local UP vector
+      const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.cube.quaternion);
       
-      // Combine normal alignment with player yaw (heading)
-      const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-      targetCubeRot = alignQuat.clone().multiply(yawQuat);
+      // Calculate rotation required to gently tilt the current UP directly towards the new surface normal
+      const alignQuat = new THREE.Quaternion().setFromUnitVectors(currentUp, faceNormal);
+      
+      // Apply this tilt incrementally to the existing rotation. This strictly preserves local yaw
+      targetCubeRot = alignQuat.clone().multiply(this.cube.quaternion);
       
       // Ground clamping logic
       if (this.mode === 'object') {
