@@ -3,34 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quad Sphere Interface</title>
-    <script type="module" crossorigin src="./assets/index-BspilyzK.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-ADpCxBqm.css">
+    <title>Quad Sphere Interface</title>
+    <script type="module" crossorigin src="./assets/index-aWPKEwdW.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DahMqweR.css">
   </head>
   <body>
     <!-- Background / Desktop Environment -->
     <div id="desktop">
       
-      <!-- Layout Root Container -->
-      <div id="layout-root"></div>
-      
-      <!-- Screen Overlays for dragging and snapping -->
-      <div id="drag-proxy" class="hidden"></div>
-      <div id="snap-preview" class="hidden"></div>
-
-      <!-- Dock for minimized windows -->
-      <div id="dock"></div>
-    </div>
-
-    <!-- Hidden definitions to be ingested by the window manager -->
-    <div id="templates" style="display: none;">
+      <!-- Interface Window -->
       <div id="app-window" class="window glass">
-        <div class="window-header window-drag-handle">
-          <span class="title">Quad View</span>
+        <div class="window-header" id="window-header">
+          <span class="title">Quad Interface</span>
           <div class="controls">
             <button class="win-btn minimize">−</button>
             <button class="win-btn maximize">⬜</button>
-            <button class="win-btn restore" style="display:none;">❐</button>
             <button class="win-btn close">✕</button>
           </div>
         </div>
@@ -41,11 +28,12 @@
             <button id="mode-orbit" class="active">Orbit Control</button>
             <button id="mode-object">Object Control</button>
           </div>
+
           <!-- WebGL Container -->
           <div id="canvas-container"></div>
         </div>
       </div>
-    </div>
-
+    
+    </div>
   </body>
 </html>
