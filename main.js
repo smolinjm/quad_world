@@ -35,7 +35,7 @@ menus.forEach((menuId) => {
 
 // 4. Define Initial Layout Tree (BSP)
 // Split horizontally: Left 60% = app-window, Right 40% = menus grid
-const layout = {
+const defaultLayout = {
   type: 'split',
   direction: 'horizontal',
   splitRatio: 0.6,
@@ -69,8 +69,19 @@ const layout = {
   ]
 };
 
-// 5. Render Layout
-dockManager.setLayout(layout);
+// 5. Load State or Render Default Layout
+const savedStateJson = localStorage.getItem('quad_world_layout');
+if (savedStateJson) {
+  try {
+    const savedState = JSON.parse(savedStateJson);
+    dockManager.loadState(savedState);
+  } catch (e) {
+    console.error('Failed to load saved layout state', e);
+    dockManager.setLayout(defaultLayout);
+  }
+} else {
+  dockManager.setLayout(defaultLayout);
+}
 
 
 // 6. Initialize WebGL physics loop

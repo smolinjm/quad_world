@@ -60,6 +60,55 @@ export class DockingManager {
   setLayout(treeDef) {
     this.tree = this._buildNode(treeDef, null);
     this.render();
+    this.saveLayout();
+  }
+
+  // --- Persistency --- //
+
+  loadState(stateParams) {
+    if (!stateParams) return;
+    
+    const { tree, minimized, maximizedWindow } = stateParams;
+    
+    // Set minimized before layout so render ignores them properly
+    if (minimized && Array.isArray(minimized)) {
+      this.minimized = new Set(minimized);
+    }
+    
+    if (tree) {
+      this.setLayout(tree); // this calls render & saveLayout
+    }
+    
+    if (maximizedWindow && this.windows[maximizedWindow]) {
+      this.maximize(maximizedWindow);
+    }
+  }
+
+  saveLayout() {
+    // Avoid saving if we are actively dragging (tree is temporarily missing the node)
+    if (this.dragState && this.dragState.active) return;
+
+    const state = {
+      tree: this._serializeNode(this.tree),
+      minimized: Array.from(this.minimized),
+      maximizedWindow: this.maximizedWindow
+    };
+    localStorage.setItem('quad_world_layout', JSON.stringify(state));
+  }
+
+  _serializeNode(node) {
+    if (!node) return null;
+    const serialized = { type: node.type };
+    if (node.type === 'window') {
+      serialized.windowId = node.windowId;
+    } else if (node.type === 'split') {
+      serialized.direction = node.direction;
+      serialized.splitRatio = node.splitRatio;
+      if (node.children) {
+        serialized.children = node.children.map(c => this._serializeNode(c)).filter(Boolean);
+      }
+    }
+    return serialized;
   }
 
   // --- Rendering --- //
@@ -156,6 +205,7 @@ export class DockingManager {
     if (this.maximizedWindow === id) this.restore(id);
     this.minimized.add(id);
     this.render();
+    this.saveLayout();
   }
 
   maximize(id) {
@@ -171,6 +221,7 @@ export class DockingManager {
 
     // Move to body level so it covers layout
     document.body.appendChild(win.dom);
+    this.saveLayout();
   }
 
   restore(id) {
@@ -190,6 +241,7 @@ export class DockingManager {
       // So restoring just repaints!
     }
     this.render();
+    this.saveLayout();
   }
 
   // --- Tree Manipulation (BSP) --- //
@@ -288,6 +340,7 @@ export class DockingManager {
         this.resizeState.active = false;
         document.querySelectorAll('.resizer').forEach(r => r.classList.remove('dragging'));
         this.render(); // Ensure flex values recalculate correctly on end
+        this.saveLayout();
       }
     });
   }
@@ -418,6 +471,7 @@ export class DockingManager {
     }
     
     this.render();
+    this.saveLayout();
   }
 
   _updateResize(e) {
