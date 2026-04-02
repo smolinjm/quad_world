@@ -31,20 +31,37 @@ body, html {
 
 /* Glassmorphic Window */
 .window {
-  position: absolute;
-  top: 10%;
-  left: 10%;
-  width: 80vw;
-  height: 80vh;
+  width: 100%;
+  height: 100%;
   background: var(--glass-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+/* Float override for dragging/proxy */
+.window.floating, #drag-proxy .window {
+  position: absolute !important;
+  z-index: 9999;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255,255,255,0.05), 0 0 0 2px var(--neon-blue);
+  opacity: 0.9;
+  pointer-events: none; /* Let drag pass through to compute drop targets */
+}
+
+/* Maximized full screen */
+.window.maximized {
+  position: absolute !important;
+  top: 10px !important;
+  left: 10px !important;
+  width: calc(100vw - 20px) !important;
+  height: calc(100vh - 20px) !important;
+  z-index: 1000;
 }
 
 .window-header {
@@ -157,4 +174,113 @@ body, html {
 canvas {
   display: block;
   outline: none;
+}
+
+/* --- BSP Docking Manager Styles --- */
+
+#layout-root {
+  width: 100%;
+  height: calc(100% - 50px); /* Leave space for dock */
+  padding: 10px;
+  display: flex;
+  box-sizing: border-box;
+}
+
+.layout-split {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout-split.horizontal {
+  flex-direction: row;
+}
+
+.layout-split.vertical {
+  flex-direction: column;
+}
+
+.layout-panel {
+  display: flex;
+  flex: 1; /* overridden inline via JS */
+  min-width: 100px;
+  min-height: 100px;
+  position: relative;
+}
+
+.resizer {
+  background: transparent;
+  transition: background 0.2s;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resizer:hover, .resizer.dragging {
+  background: var(--neon-blue);
+}
+
+.layout-split.horizontal > .resizer {
+  width: 8px;
+  margin: 0 -4px;
+  cursor: col-resize;
+}
+
+.layout-split.vertical > .resizer {
+  height: 8px;
+  margin: -4px 0;
+  cursor: row-resize;
+}
+
+#snap-preview {
+  position: absolute;
+  border: 2px dashed var(--neon-blue);
+  background: rgba(0, 243, 255, 0.2);
+  z-index: 100;
+  border-radius: 12px;
+  pointer-events: none;
+  transition: all 0.1s ease-out;
+}
+
+#snap-preview.hidden {
+  display: none;
+}
+
+#drag-proxy.hidden {
+  display: none;
+}
+
+/* --- Dock (Minimized items taskbar) --- */
+#dock {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.6);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 500;
+}
+
+.dock-item {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dock-item:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
 }
