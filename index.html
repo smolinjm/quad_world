@@ -3,21 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quad Sphere Interface</title>
-    <script type="module" crossorigin src="./assets/index-aWPKEwdW.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DahMqweR.css">
+    <title>Quad Sphere Interface</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%2300f3ff'/></svg>">
+    <script type="module" crossorigin src="./assets/index-BjQstVc5.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-ADpCxBqm.css">
   </head>
   <body>
     <!-- Background / Desktop Environment -->
     <div id="desktop">
       
-      <!-- Interface Window -->
+      <!-- Layout Root Container -->
+      <div id="layout-root"></div>
+      
+      <!-- Screen Overlays for dragging and snapping -->
+      <div id="drag-proxy" class="hidden"></div>
+      <div id="snap-preview" class="hidden"></div>
+
+      <!-- Dock for minimized windows -->
+      <div id="dock"></div>
+    </div>
+
+    <!-- Hidden definitions to be ingested by the window manager -->
+    <div id="templates" style="display: none;">
       <div id="app-window" class="window glass">
-        <div class="window-header" id="window-header">
-          <span class="title">Quad Interface</span>
+        <div class="window-header window-drag-handle">
+          <span class="title">Quad View</span>
           <div class="controls">
             <button class="win-btn minimize">−</button>
             <button class="win-btn maximize">⬜</button>
+            <button class="win-btn restore" style="display:none;">❐</button>
             <button class="win-btn close">✕</button>
           </div>
         </div>
@@ -28,12 +42,11 @@
             <button id="mode-orbit" class="active">Orbit Control</button>
             <button id="mode-object">Object Control</button>
           </div>
-
           <!-- WebGL Container -->
           <div id="canvas-container"></div>
         </div>
       </div>
-    
-    </div>
+    </div>
+
   </body>
 </html>
