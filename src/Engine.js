@@ -65,6 +65,7 @@ export class Engine {
     this.orbitVelocity = new THREE.Vector2(0, 0);
     this.isDragging = false;
     this.previousMouse = new THREE.Vector2();
+    this.cameraOrbitQuat = new THREE.Quaternion();
 
     // Resize handlers
     this.resize();
@@ -191,12 +192,13 @@ export class Engine {
   }
 
   applyOrbitRotation(deltaX, deltaY) {
-    const quatY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), deltaX);
-    const quatX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), deltaY);
+    // Negate deltas to grab and rotate the observer camera opposite to drag movement
+    const quatY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX);
+    const quatX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -deltaY);
     
-    // Multiply global rotation axes
-    this.sphereGroup.quaternion.premultiply(quatY);
-    this.sphereGroup.quaternion.premultiply(quatX);
+    // Trackball Camera rotation in global axes
+    this.cameraOrbitQuat.premultiply(quatY);
+    this.cameraOrbitQuat.premultiply(quatX);
   }
 
   tick() {
@@ -292,15 +294,19 @@ export class Engine {
 
     // -- Camera Director --
     if (this.mode === 'orbit') {
-      // Lerp Camera outward to Macro view
+      // Fly the camera globally around the entire locked scene
       const targetPos = new THREE.Vector3(0, 0, this.macroDistance);
-      this.camera.position.lerp(targetPos, 0.05);
+      targetPos.applyQuaternion(this.cameraOrbitQuat);
       
-      const currentRot = this.camera.quaternion.clone();
-      this.camera.lookAt(new THREE.Vector3(0, 0, 0));
-      const targetQuat = this.camera.quaternion.clone();
-      this.camera.quaternion.copy(currentRot);
-      this.camera.quaternion.slerp(targetQuat, 0.05);
+      // Remove position lerping delay to keep mouse drag tracking exactly 1:1
+      this.camera.position.copy(targetPos);
+      
+      // Match camera's UP axis to the rolling trackball frame 
+      const targetUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.cameraOrbitQuat);
+      this.camera.up.copy(targetUp);
+      
+      // Instantly stare at the center from current position to guarantee zero sphere drift
+      this.camera.lookAt(0, 0, 0);
 
     } else if (this.mode === 'object') {
       // First-person / Clamp to cube view
