@@ -23,6 +23,7 @@ menus.forEach((menuId) => {
     menuContent = `
       <div style="padding: 16px;">
         <button id="btn-spawn-fauna" style="padding: 8px 16px; background: var(--theme-accent, var(--neon-blue)); border: none; color: black; font-weight: bold; cursor: pointer; border-radius: 4px;">Spawn Fauna</button>
+        <p style="margin-top: 12px; font-size: 14px;">Active Fauna: <span id="fauna-counter" style="font-weight: bold; color: var(--theme-accent, var(--neon-blue));">0</span></p>
       </div>
     `;
   } else if (menuId === 'menu2') {
@@ -40,6 +41,14 @@ menus.forEach((menuId) => {
         <button class="theme-btn" data-theme="default" style="padding: 8px; background: rgba(0,243,255,0.2); border: 1px solid #00f3ff; color: white; cursor: pointer; border-radius: 4px;">Default (Neon/Teal)</button>
         <button class="theme-btn" data-theme="toxic" style="padding: 8px; background: rgba(0,255,102,0.2); border: 1px solid #00ff66; color: white; cursor: pointer; border-radius: 4px;">Toxic (Ghost Green/Purple)</button>
         <button class="theme-btn" data-theme="cyber" style="padding: 8px; background: rgba(255,0,60,0.2); border: 1px solid #ff003c; color: white; cursor: pointer; border-radius: 4px;">Cyber (Red/Deep Blue)</button>
+      </div>
+    `;
+  } else if (menuId === 'menu4') {
+    menuTitle = 'Telemetry';
+    menuContent = `
+      <div style="padding: 16px; text-align: center;">
+        <h3 style="font-size: 16px; margin-bottom: 8px; color: rgba(255,255,255,0.7);">Active Location</h3>
+        <div id="location-display" style="font-size: 32px; font-weight: bold; color: var(--theme-accent, var(--neon-blue)); letter-spacing: 2px;">--</div>
       </div>
     `;
   } else {
@@ -151,6 +160,16 @@ if (btnSpawnFauna) {
 engine.onScoreUpdate = (score) => {
   const sd = document.getElementById('score-display');
   if (sd) sd.innerText = score;
+};
+
+engine.onFaunaCountChange = (count) => {
+  const fc = document.getElementById('fauna-counter');
+  if (fc) fc.innerText = count;
+};
+
+engine.onFaceChange = (label) => {
+  const ld = document.getElementById('location-display');
+  if (ld) ld.innerText = label;
 };
 
 // 9. Theme Logic

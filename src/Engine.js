@@ -55,12 +55,17 @@ export class Engine {
     this.particles = [];
     this.score = 0;
     this.onScoreUpdate = null;
+    this.onFaunaCountChange = null;
+    this.onFaceChange = null;
+    this.currentFaceLabel = '';
+    this.currentOrbitRad = 0;
+    this.targetMacroDistance = 0;
 
     // Mode properties
     this.mode = 'orbit'; // 'orbit' or 'object'
     
     // FPS State
-    this.keys = { w: false, a: false, s: false, d: false, space: false };
+    this.keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
     this.pitch = 0;
     this.isPointerLocked = false;
     this.verticalVelocity = 0;
@@ -105,8 +110,13 @@ export class Engine {
     const targetViewHeight = (this.sphereRadius * 2) / 0.66;
     this.macroDistance = targetViewHeight / (2 * Math.tan(fovRad / 2));
     
+    if (this.currentOrbitRad === 0) {
+      this.currentOrbitRad = this.macroDistance;
+      this.targetMacroDistance = this.macroDistance;
+    }
+    
     if (this.mode === 'orbit') {
-      this.camera.position.set(0, 0, this.macroDistance);
+      this.camera.position.set(0, 0, this.currentOrbitRad);
       this.camera.lookAt(0, 0, 0);
     }
   }
@@ -148,6 +158,8 @@ export class Engine {
       moveTimer: 0,
       targetMoveDir: new THREE.Vector3(0,0,1)
     });
+    
+    if (this.onFaunaCountChange) this.onFaunaCountChange(this.fauna.length);
   }
 
   spawnExplosion(pos) {
@@ -176,6 +188,7 @@ export class Engine {
       if (e.key === 's' || e.key === 'S') this.keys.s = true;
       if (e.key === 'd' || e.key === 'D') this.keys.d = true;
       if (e.key === ' ') this.keys.space = true;
+      if (e.key === 'Shift') this.keys.shift = true;
     });
 
     window.addEventListener('keyup', (e) => {
@@ -185,6 +198,7 @@ export class Engine {
       if (e.key === 's' || e.key === 'S') this.keys.s = false;
       if (e.key === 'd' || e.key === 'D') this.keys.d = false;
       if (e.key === ' ') this.keys.space = false;
+      if (e.key === 'Shift') this.keys.shift = false;
     });
 
     // Pointer Lock events
@@ -248,6 +262,16 @@ export class Engine {
     el.addEventListener('pointerleave', () => {
       this.isDragging = false;
     });
+
+    el.addEventListener('wheel', (e) => {
+      if (this.mode === 'orbit') {
+        if (e.deltaY < 0) {
+           this.targetMacroDistance = this.sphereRadius + 15; // close up
+        } else if (e.deltaY > 0) {
+           this.targetMacroDistance = this.macroDistance; // zoom out
+        }
+      }
+    });
   }
 
   applyOrbitRotation(deltaX, deltaY) {
@@ -277,7 +301,11 @@ export class Engine {
     // -- FPS Character Movement --
     if (this.mode === 'object') {
        // Using fixed absolute traversal speed relative to the human-scale cube
-       const moveSpeed = 5.0 * dt; 
+       let moveSpeed = 5.0 * dt; 
+       if (this.keys.shift) {
+          moveSpeed *= 2.0; // sprint
+       }
+       
        const moveDir = new THREE.Vector3(0, 0, 0);
 
        if (this.keys.w) moveDir.z -= 1;
@@ -323,6 +351,18 @@ export class Engine {
       const faceNormal = intersects[0].face.normal.clone();
       // Face normals are in local space of sphere. Transform to world.
       faceNormal.transformDirection(this.sphereGroup.matrixWorld).normalize();
+
+      // Label Resolution
+      const globalQuadIndex = Math.floor(intersects[0].faceIndex / 2);
+      const quadLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+      const quadIdx = Math.floor(globalQuadIndex / 121);
+      const subIdx = (globalQuadIndex % 121) + 1;
+      const faceLabel = quadLabels[quadIdx] + '-' + String(subIdx).padStart(3, '0');
+      
+      if (this.currentFaceLabel !== faceLabel) {
+         this.currentFaceLabel = faceLabel;
+         if (this.onFaceChange) this.onFaceChange(faceLabel);
+      }
       
       // Find current local UP vector
       const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.cube.quaternion);
@@ -455,6 +495,7 @@ export class Engine {
          
          this.spawnExplosion(f.mesh.position);
          this.fauna.splice(i, 1);
+         if (this.onFaunaCountChange) this.onFaunaCountChange(this.fauna.length);
          this.score += 1;
          if (this.onScoreUpdate) this.onScoreUpdate(this.score);
       }
@@ -477,8 +518,11 @@ export class Engine {
 
     // -- Camera Director --
     if (this.mode === 'orbit') {
+      // Lerp orbit camera zoom smoothly
+      this.currentOrbitRad += (this.targetMacroDistance - this.currentOrbitRad) * 0.1;
+      
       // Fly the camera globally around the entire locked scene
-      const targetPos = new THREE.Vector3(0, 0, this.macroDistance);
+      const targetPos = new THREE.Vector3(0, 0, this.currentOrbitRad);
       targetPos.applyQuaternion(this.cameraOrbitQuat);
       
       // Remove position lerping delay to keep mouse drag tracking exactly 1:1
