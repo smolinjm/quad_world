@@ -151,8 +151,8 @@ export class Engine {
   }
 
   spawnExplosion(pos) {
-    const pGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
     for(let i=0; i<15; i++) {
+      const pGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
       const pMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
       const pMesh = new THREE.Mesh(pGeo, pMat);
       pMesh.position.copy(pos);
@@ -446,6 +446,13 @@ export class Engine {
       // Death
       if (f.hp <= 0) {
          this.scene.remove(f.mesh);
+         f.mesh.geometry.dispose();
+         f.mesh.material.dispose();
+         f.mesh.children.forEach(child => {
+             if (child.geometry) child.geometry.dispose();
+             if (child.material) child.material.dispose();
+         });
+         
          this.spawnExplosion(f.mesh.position);
          this.fauna.splice(i, 1);
          this.score += 1;
@@ -459,6 +466,8 @@ export class Engine {
        p.life -= dt;
        if (p.life <= 0) {
           this.scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          p.mesh.material.dispose();
           this.particles.splice(i, 1);
        } else {
           p.mesh.position.addScaledVector(p.vel, dt);
