@@ -14,10 +14,10 @@ export class Engine {
     this.container.appendChild(this.renderer.domElement);
 
     // Quad Sphere Setup
-    // Increased scale 10x (from 5 to 50)
-    this.sphereRadius = 50;
-    // Changed subdivisions from 6 to 8 to approximately double the quad count (216 -> 384)
-    const { lineGeometry, meshGeometry } = createQuadSphereEdges(this.sphereRadius, 8);
+    // Increased scale 150
+    this.sphereRadius = 150;
+    // Changed subdivisions from 8 to 11 to roughly double the quad count
+    const { lineGeometry, meshGeometry } = createQuadSphereEdges(this.sphereRadius, 11);
     
     // The glowing wireframe (Visual)
     const lineMat = new THREE.LineBasicMaterial({ color: 0x00f3ff, linewidth: 2 });
@@ -49,6 +49,12 @@ export class Engine {
     // Start cube resting right above the sphere's top pole
     this.cube.position.set(0, this.sphereRadius + cubeRad + 0.1, 0);
     this.scene.add(this.cube);
+
+    // Fauna and Systems
+    this.fauna = [];
+    this.particles = [];
+    this.score = 0;
+    this.onScoreUpdate = null;
 
     // Mode properties
     this.mode = 'orbit'; // 'orbit' or 'object'
@@ -108,6 +114,55 @@ export class Engine {
   setMode(newMode) {
     if (this.mode === newMode) return;
     this.mode = newMode;
+  }
+
+  spawnFauna() {
+    const fRad = 0.25; // 50% smaller
+    const fGeo = new THREE.BoxGeometry(fRad * 2, fRad * 2, fRad * 2);
+    const fMat = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
+    const faunaMesh = new THREE.Mesh(fGeo, fMat);
+    
+    // Add glowing edges
+    const fEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(fGeo),
+      new THREE.LineBasicMaterial({ color: 0xffffff })
+    );
+    faunaMesh.add(fEdges);
+    
+    // Random position on the sphere surface (roughly)
+    const randomDir = new THREE.Vector3(
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+      Math.random() - 0.5
+    ).normalize();
+    faunaMesh.position.copy(randomDir.multiplyScalar(this.sphereRadius + fRad + 5));
+    
+    this.scene.add(faunaMesh);
+    
+    this.fauna.push({
+      mesh: faunaMesh,
+      hp: 3,
+      hitTimer: 0,
+      vVel: 0,
+      isGrounded: false,
+      moveTimer: 0,
+      targetMoveDir: new THREE.Vector3(0,0,1)
+    });
+  }
+
+  spawnExplosion(pos) {
+    const pGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    for(let i=0; i<15; i++) {
+      const pMat = new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true });
+      const pMesh = new THREE.Mesh(pGeo, pMat);
+      pMesh.position.copy(pos);
+      this.scene.add(pMesh);
+      this.particles.push({
+        mesh: pMesh,
+        vel: new THREE.Vector3((Math.random()-0.5)*10, (Math.random()-0.5)*10, (Math.random()-0.5)*10),
+        life: 1.0
+      });
+    }
   }
 
   setupInputs() {
@@ -297,6 +352,119 @@ export class Engine {
     
     // Smooth SLERP alignment visually
     this.cube.quaternion.slerp(targetCubeRot, 0.4);
+
+    // -- Fauna Tick --
+    const fRad = 0.25;
+    for (let i = this.fauna.length - 1; i >= 0; i--) {
+      const f = this.fauna[i];
+      
+      // Damage effect
+      if (f.hitTimer > 0) {
+        f.hitTimer -= dt;
+        f.mesh.material.color.setHex(0xff0000); // Red
+      } else {
+        f.mesh.material.color.setHex(0xffff00); // Back to yellow
+      }
+      
+      // Move logic (Random Walk)
+      f.moveTimer -= dt;
+      if (f.moveTimer <= 0) {
+         f.moveTimer = 2.0 + Math.random() * 3.0; // new dir every 2 to 5 secs
+         f.targetMoveDir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+      }
+      
+      const fMoveSpeed = 2.0 * dt;
+      const fMove = f.targetMoveDir.clone().multiplyScalar(fMoveSpeed);
+      fMove.applyQuaternion(f.mesh.quaternion);
+      f.mesh.position.add(fMove);
+      
+      // Raycast for Fauna
+      const dirToCenterF = new THREE.Vector3(0,0,0).sub(f.mesh.position).normalize();
+      const gravityAccelerateF = 25.0; 
+      f.vVel -= gravityAccelerateF * dt;
+      
+      // Jump occasionally
+      if (f.isGrounded && Math.random() < 0.005) {
+          f.vVel = 10.0; 
+          f.isGrounded = false;
+      }
+      
+      f.mesh.position.addScaledVector(dirToCenterF, -f.vVel * dt);
+      
+      this.raycaster.set(f.mesh.position, dirToCenterF);
+      const intersectsF = this.raycaster.intersectObject(this.sphereMesh);
+      
+      let targetRotF = f.mesh.quaternion.clone();
+      if (intersectsF.length > 0) {
+          const faceNormal = intersectsF[0].face.normal.clone();
+          faceNormal.transformDirection(this.sphereGroup.matrixWorld).normalize();
+          const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(f.mesh.quaternion);
+          const alignQuat = new THREE.Quaternion().setFromUnitVectors(currentUp, faceNormal);
+          targetRotF = alignQuat.clone().multiply(f.mesh.quaternion);
+          
+          const distToSurface = intersectsF[0].distance;
+          if (distToSurface <= fRad) {
+              const pushZ = distToSurface - fRad;
+              f.mesh.position.addScaledVector(dirToCenterF, pushZ);
+              f.vVel = 0;
+              f.isGrounded = true;
+          } else {
+              f.isGrounded = false;
+          }
+      }
+      f.mesh.quaternion.slerp(targetRotF, 0.4);
+
+      // Player Collision Check
+      const collisionDist = 0.5 + fRad; 
+      const dist = this.cube.position.distanceTo(f.mesh.position);
+      if (dist < collisionDist) {
+         // Prevent overlap (Pushback)
+         const pushDir = this.cube.position.clone().sub(f.mesh.position).normalize();
+         const overlap = collisionDist - dist;
+         
+         this.cube.position.add(pushDir.clone().multiplyScalar(overlap * 0.5));
+         f.mesh.position.add(pushDir.clone().multiplyScalar(-overlap * 0.5));
+         
+         // Damage registration (only if hit_timer <= 0 to avoid multi-hits per sec)
+         if (f.hitTimer <= 0) {
+            // Check top face collision:
+            const playerUpInFauna = new THREE.Vector3(0,1,0).applyQuaternion(f.mesh.quaternion);
+            const toPlayer = this.cube.position.clone().sub(f.mesh.position);
+            const heightDiff = toPlayer.dot(playerUpInFauna);
+            
+            // If player is falling and strictly on top of the fauna bounds
+            if (heightDiff > fRad * 0.8 && this.verticalVelocity < 0) {
+                f.hp -= 2;
+                this.verticalVelocity = 8.0; // bounce off
+            } else {
+                f.hp -= 1;
+            }
+            f.hitTimer = 0.5; // flash timer
+         }
+      }
+      
+      // Death
+      if (f.hp <= 0) {
+         this.scene.remove(f.mesh);
+         this.spawnExplosion(f.mesh.position);
+         this.fauna.splice(i, 1);
+         this.score += 1;
+         if (this.onScoreUpdate) this.onScoreUpdate(this.score);
+      }
+    }
+
+    // -- Particles Tick --
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+       const p = this.particles[i];
+       p.life -= dt;
+       if (p.life <= 0) {
+          this.scene.remove(p.mesh);
+          this.particles.splice(i, 1);
+       } else {
+          p.mesh.position.addScaledVector(p.vel, dt);
+          p.mesh.scale.setScalar(p.life);
+       }
+    }
 
     // -- Camera Director --
     if (this.mode === 'orbit') {

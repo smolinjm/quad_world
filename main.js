@@ -15,9 +15,44 @@ menus.forEach((menuId) => {
   win.className = 'window glass';
   win.id = menuId;
   
+  let menuContent = '';
+  let menuTitle = `Menu ${menuId.replace('menu', '')}`;
+  
+  if (menuId === 'menu1') {
+    menuTitle = 'Spawners';
+    menuContent = `
+      <div style="padding: 16px;">
+        <button id="btn-spawn-fauna" style="padding: 8px 16px; background: var(--theme-accent, var(--neon-blue)); border: none; color: black; font-weight: bold; cursor: pointer; border-radius: 4px;">Spawn Fauna</button>
+      </div>
+    `;
+  } else if (menuId === 'menu2') {
+    menuTitle = 'Scoreboard';
+    menuContent = `
+      <div style="padding: 16px; text-align: center;">
+        <h2 style="font-size: 24px; color: var(--theme-accent, var(--neon-blue)); margin-bottom: 8px;">Score</h2>
+        <div id="score-display" style="font-size: 48px; font-weight: bold;">0</div>
+      </div>
+    `;
+  } else if (menuId === 'menu3') {
+    menuTitle = 'Themes';
+    menuContent = `
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+        <button class="theme-btn" data-theme="default" style="padding: 8px; background: rgba(0,243,255,0.2); border: 1px solid #00f3ff; color: white; cursor: pointer; border-radius: 4px;">Default (Neon/Teal)</button>
+        <button class="theme-btn" data-theme="toxic" style="padding: 8px; background: rgba(0,255,102,0.2); border: 1px solid #00ff66; color: white; cursor: pointer; border-radius: 4px;">Toxic (Ghost Green/Purple)</button>
+        <button class="theme-btn" data-theme="cyber" style="padding: 8px; background: rgba(255,0,60,0.2); border: 1px solid #ff003c; color: white; cursor: pointer; border-radius: 4px;">Cyber (Red/Deep Blue)</button>
+      </div>
+    `;
+  } else {
+    menuContent = `
+      <div class="window-content" style="padding: 16px;">
+        <p style="color: rgba(255,255,255,0.7); font-size: 14px;">Placeholder content for ${menuId}</p>
+      </div>
+    `;
+  }
+
   win.innerHTML = `
     <div class="window-header window-drag-handle">
-      <span class="title">Menu ${menuId.replace('menu', '')}</span>
+      <span class="title">${menuTitle}</span>
       <div class="controls">
         <button class="win-btn minimize">−</button>
         <button class="win-btn maximize">⬜</button>
@@ -25,12 +60,12 @@ menus.forEach((menuId) => {
         <button class="win-btn close">✕</button>
       </div>
     </div>
-    <div class="window-content" style="padding: 16px;">
-      <p style="color: rgba(255,255,255,0.7); font-size: 14px;">Placeholder content for ${menuId}</p>
+    <div class="window-content" style="flex:1;">
+      ${menuContent}
     </div>
   `;
   
-  dockManager.registerWindow(menuId, win, `Menu ${menuId.replace('menu', '')}`);
+  dockManager.registerWindow(menuId, win, menuTitle);
 });
 
 // 4. Define Initial Layout Tree (BSP)
@@ -104,3 +139,25 @@ if (orbitBtn && objectBtn) {
     engine.setMode('object');
   });
 }
+
+// 8. Bind new UI actions
+const btnSpawnFauna = document.getElementById('btn-spawn-fauna');
+if (btnSpawnFauna) {
+  btnSpawnFauna.addEventListener('click', () => {
+    engine.spawnFauna();
+  });
+}
+
+engine.onScoreUpdate = (score) => {
+  const sd = document.getElementById('score-display');
+  if (sd) sd.innerText = score;
+};
+
+// 9. Theme Logic
+const themeButtons = document.querySelectorAll('.theme-btn');
+themeButtons.forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    const theme = e.target.getAttribute('data-theme');
+    document.body.className = `theme-${theme}`;
+  });
+});

@@ -2,7 +2,32 @@
   --glass-bg: rgba(20, 25, 30, 0.6);
   --glass-border: rgba(255, 255, 255, 0.1);
   --neon-blue: #00f3ff;
+  --theme-accent: #00f3ff;
   --bg-color: #050505;
+}
+
+body.theme-toxic {
+  --neon-blue: #00ff66;
+  --theme-accent: #00ff66;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(40, 0, 80, 0.4), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(0, 80, 40, 0.4), transparent 40%);
+}
+
+body.theme-cyber {
+  --neon-blue: #ff003c;
+  --theme-accent: #ff003c;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(0, 20, 100, 0.5), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(100, 0, 20, 0.5), transparent 40%);
+}
+
+body.theme-default {
+  --neon-blue: #00f3ff;
+  --theme-accent: #00f3ff;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(0, 50, 80, 0.4), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(40, 0, 70, 0.4), transparent 40%);
 }
 
 * {
@@ -21,6 +46,7 @@ body, html {
     radial-gradient(circle at 15% 50%, rgba(0, 50, 80, 0.4), transparent 40%),
     radial-gradient(circle at 85% 30%, rgba(40, 0, 70, 0.4), transparent 40%);
   color: white;
+  transition: background-image 0.5s ease;
 }
 
 #desktop {
@@ -37,12 +63,12 @@ body, html {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  border-radius: 6px;
   box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, border-color 0.5s;
 }
 
 /* Float override for dragging/proxy */
@@ -132,7 +158,7 @@ body, html {
   display: flex;
   background: rgba(0, 0, 0, 0.5);
   padding: 4px;
-  border-radius: 20px;
+  border-radius: 10px;
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
@@ -143,7 +169,7 @@ body, html {
   border: none;
   color: rgba(255,255,255,0.6);
   padding: 8px 16px;
-  border-radius: 16px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
   font-size: 13px;
@@ -181,7 +207,7 @@ canvas {
 #layout-root {
   width: 100%;
   height: calc(100% - 50px); /* Leave space for dock */
-  padding: 10px;
+  padding: 1px;
   display: flex;
   box-sizing: border-box;
 }
@@ -239,7 +265,7 @@ canvas {
   border: 2px dashed var(--neon-blue);
   background: rgba(0, 243, 255, 0.2);
   z-index: 100;
-  border-radius: 12px;
+  border-radius: 6px;
   pointer-events: none;
   transition: all 0.1s ease-out;
 }
