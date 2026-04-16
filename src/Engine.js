@@ -344,7 +344,9 @@ export class Engine {
         this.cube.position.addScaledVector(dirToCenter, -this.verticalVelocity * dt);
     }
     
-    this.raycaster.set(this.cube.position, dirToCenter);
+    // Cast ray from slightly 'above' the player relative to the center to prevent falling through at high velocity
+    const safeRayOrigin = this.cube.position.clone().addScaledVector(dirToCenter, -2.0);
+    this.raycaster.set(safeRayOrigin, dirToCenter);
     const intersects = this.raycaster.intersectObject(this.sphereMesh);
     
     if (intersects.length > 0) {
@@ -375,7 +377,8 @@ export class Engine {
       
       // Ground clamping logic
       if (this.mode === 'object') {
-          const distToSurface = intersects[0].distance;
+          // Adjust dist back by the 2.0 offset we added to the ray origin
+          const distToSurface = intersects[0].distance - 2.0;
           const cubeRad = 0.5; // Absolute human-scale size
           const expectedDistanceIfResting = cubeRad;
           
@@ -388,6 +391,13 @@ export class Engine {
               this.isGrounded = false; 
           }
       }
+    }
+
+    // Absolute Core Fail-safe: Hard Clamp
+    if (this.cube.position.lengthSq() < (this.sphereRadius * 0.95)**2) {
+       this.cube.position.normalize().multiplyScalar(this.sphereRadius + 0.5);
+       this.verticalVelocity = 0;
+       this.isGrounded = true;
     }
     
     // Smooth SLERP alignment visually
@@ -431,7 +441,9 @@ export class Engine {
       
       f.mesh.position.addScaledVector(dirToCenterF, -f.vVel * dt);
       
-      this.raycaster.set(f.mesh.position, dirToCenterF);
+      // Safe raycast to prevent high velocity pass-through
+      const safeRayOriginF = f.mesh.position.clone().addScaledVector(dirToCenterF, -2.0);
+      this.raycaster.set(safeRayOriginF, dirToCenterF);
       const intersectsF = this.raycaster.intersectObject(this.sphereMesh);
       
       let targetRotF = f.mesh.quaternion.clone();
@@ -442,7 +454,7 @@ export class Engine {
           const alignQuat = new THREE.Quaternion().setFromUnitVectors(currentUp, faceNormal);
           targetRotF = alignQuat.clone().multiply(f.mesh.quaternion);
           
-          const distToSurface = intersectsF[0].distance;
+          const distToSurface = intersectsF[0].distance - 2.0; // Subtract safety offset
           if (distToSurface <= fRad) {
               const pushZ = distToSurface - fRad;
               f.mesh.position.addScaledVector(dirToCenterF, pushZ);
@@ -453,6 +465,13 @@ export class Engine {
           }
       }
       f.mesh.quaternion.slerp(targetRotF, 0.4);
+
+      // Core failsafe for Fauna
+      if (f.mesh.position.lengthSq() < (this.sphereRadius * 0.95)**2) {
+         f.mesh.position.normalize().multiplyScalar(this.sphereRadius + fRad);
+         f.vVel = 0;
+         f.isGrounded = true;
+      }
 
       // Player Collision Check
       const collisionDist = 0.5 + fRad; 
